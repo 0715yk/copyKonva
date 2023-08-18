@@ -275,10 +275,10 @@
   "resolved" "https://registry.npmjs.org/esutils/-/esutils-2.0.3.tgz"
   "version" "2.0.3"
 
-"fabric-image-maker@^0.0.6":
-  "integrity" "sha512-tLyDfjYGV87mfPYy7pbjuedoO0SXonkJ3Qh+oF/zyBSUM+aX4c9NK9RwjieXirlGmj72j4+KDiB/EaEkgpPHhg=="
-  "resolved" "https://registry.npmjs.org/fabric-image-maker/-/fabric-image-maker-0.0.6.tgz"
-  "version" "0.0.6"
+"fabric-image-maker@^0.0.7":
+  "integrity" "sha512-Dzi/e+nnfh8I5Glb0tXI8ruCmUApfLBEaGWRok1qUiQ1cvVGYCaYNh+5xDgBHfTtiFvXu3S7IxT/F9b0DHv+VA=="
+  "resolved" "https://registry.npmjs.org/fabric-image-maker/-/fabric-image-maker-0.0.7.tgz"
+  "version" "0.0.7"
   dependencies:
     "fabric" "^5.3.0"
 
@@ -429,6 +429,11 @@
     "whatwg-url" "^10.0.0"
     "ws" "^8.2.3"
     "xml-name-validator" "^4.0.0"
+
+"konva@^9.2.0":
+  "integrity" "sha512-+woI76Sk+VFVl9z7zPkuTnN2zFpEYg27YWz8BCdQXpt5IS3pdnSPAPQVPPMidcbDi9/G5b/IOIp35/KqMGiYPA=="
+  "resolved" "https://registry.npmjs.org/konva/-/konva-9.2.0.tgz"
+  "version" "9.2.0"
 
 "lru-cache@^6.0.0":
   "integrity" "sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA=="

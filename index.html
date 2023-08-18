@@ -8,29 +8,195 @@
     <link rel="stylesheet" type="text/css" href="src/style.css" />
   </head>
   <body>
-    <button
-      id="getBlobBtn"
-      style="
-        padding: 10px;
-        background-color: blue;
-        cursor: pointer;
-        color: #ffffff;
-      "
-    >
-      get image blob
-    </button>
-    <button
-      id="getMaskingBlobBtn"
-      style="
-        padding: 10px;
-        background-color: orange;
-        cursor: pointer;
-        color: #ffffff;
-      "
-    >
-      get masking blob
-    </button>
-    <h1>inpainting board</h1>
+    <h1>Masking Board</h1>
+
+    <div style="display: flex; gap: 50px">
+      <div>
+        <div id="app"></div>
+      </div>
+      <div
+        style="display: flex; flex-direction: column; justify-content: center"
+      >
+        <div
+          style="display: flex; justify-content: space-between; width: 200px"
+        >
+          <button
+            id="undoBtn"
+            style="
+              padding: 10px 20px;
+              background-color: grey;
+              border-radius: 5px;
+              cursor: pointer;
+              color: white;
+              font-size: 15px;
+            "
+          >
+            undo
+          </button>
+          <button
+            id="redoBtn"
+            style="
+              padding: 10px 20px;
+              background-color: black;
+              border-radius: 5px;
+              cursor: pointer;
+              color: white;
+              font-size: 15px;
+            "
+          >
+            redo
+          </button>
+        </div>
+        <h2>Drawing Control Menu</h2>
+        <div
+          style="
+            display: flex;
+            align-items: start;
+            flex-direction: column;
+            justify-content: flex-start;
+          "
+        >
+          <div>
+            1) Turning On/Off Masking mode:
+            <button
+              id="maskingBtn"
+              style="
+                background-color: red;
+                color: #ffffff;
+                padding: 10px;
+                margin-bottom: 15px;
+                cursor: pointer;
+                border-radius: 5px;
+              "
+            >
+              masking mode status : off
+            </button>
+          </div>
+
+          <div>
+            2) Selecting brush/eraser :
+            <select id="selection">
+              <option value="brush">brush</option>
+              <option value="eraser">eraser</option>
+            </select>
+          </div>
+          <br />
+          <div>
+            3) Selecting Brush Color :
+            <select id="colorSelection">
+              <option value="white" selected>white</option>
+              <option value="red">red</option>
+              <option value="blue">blue</option>
+              <option value="purple">purple</option>
+              <option value="orange">orange</option>
+            </select>
+          </div>
+          <br />
+          <div>
+            4) Control Brush Size
+            <input type="range" id="pixelInput" step="5" min="15" max="100" />
+          </div>
+          <br />
+        </div>
+        <div>
+          <h2>Image Control Menu</h2>
+          <div style="display: flex; flex-direction: column">
+            <div>
+              Image input :
+              <input id="imageInput" accept="image/*" type="file" />
+            </div>
+            <br />
+            <div>
+              upload button :
+              <button
+                id="canvasBtn"
+                style="
+                  padding: 10px;
+                  background-color: greenyellow;
+                  border-radius: 5px;
+                  cursor: pointer;
+                "
+              >
+                upload image
+              </button>
+            </div>
+            <br />
+            <div>
+              delete button :
+              <button
+                id="canvasBtn2"
+                style="
+                  padding: 10px;
+                  background-color: red;
+                  cursor: pointer;
+                  border-radius: 5px;
+                "
+              >
+                delete image
+              </button>
+              <div>
+                <h4>layer order control buttons:</h4>
+
+                <div style="display: flex">
+                  upper :&nbsp;
+                  <button
+                    id="bringToFrontBtn"
+                    style="
+                      padding: 10px;
+                      background-color: orange;
+                      cursor: pointer;
+                      border-radius: 5px;
+                    "
+                  >
+                    move to top
+                  </button>
+                  <button
+                    id="bringForwardBtn"
+                    style="
+                      margin-left: 10px;
+                      padding: 10px;
+                      background-color: pink;
+                      cursor: pointer;
+                      border-radius: 5px;
+                    "
+                  >
+                    move up
+                  </button>
+                </div>
+                <br />
+                <div style="display: flex">
+                  lower :&nbsp;
+                  <button
+                    id="sendToBackBtn"
+                    style="
+                      padding: 10px;
+                      background-color: green;
+                      cursor: pointer;
+                      border-radius: 5px;
+                    "
+                  >
+                    move to bottom
+                  </button>
+                  <button
+                    id="sendBackwardBtn"
+                    style="
+                      margin-left: 10px;
+                      padding: 10px;
+                      background-color: greenyellow;
+                      cursor: pointer;
+                      border-radius: 5px;
+                    "
+                  >
+                    move down
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <h1>Checking Results</h1>
     merge image :
     <button
       id="mergeBtn"
@@ -39,7 +205,9 @@
       Merge
     </button>
     merged image :
-    <img id="merged_image" alt="merged image" />
+    <div>
+      <img id="merged_image" alt="merged image" />
+    </div>
     <br />
     exported masking image :
     <button
@@ -48,97 +216,34 @@
     >
       Merge masking image
     </button>
-    <img id="merged_masked_image" alt="merged image" />
-    <div style="width: 80%; display: flex; justify-content: space-between">
-      <div>
-        <h3>Base Canvas Frame(Green Part)</h3>
-        <div>
-          layer order control buttons:
-          <button
-            id="bringToFrontBtn"
-            style="padding: 10px; background-color: orange; cursor: pointer"
-          >
-            bring to front
-          </button>
-          <button
-            id="bringForwardBtn"
-            style="padding: 10px; background-color: pink; cursor: pointer"
-          >
-            bring forward
-          </button>
-          <button
-            id="sendToBackBtn"
-            style="
-              margin-left: 50px;
-              padding: 10px;
-              background-color: green;
-              cursor: pointer;
-            "
-          >
-            bring to back
-          </button>
-          <button
-            id="sendBackwardBtn"
-            style="
-              padding: 10px;
-              background-color: greenyellow;
-              cursor: pointer;
-            "
-          >
-            bring backward
-          </button>
-        </div>
-        <br />
-        <div class="canvas_frame">
-          <canvas id="app"></canvas>
-          <canvas id="masking" width="900" height="700"></canvas>
-        </div>
-      </div>
-      <div
+    <div>
+      <img id="merged_masked_image" alt="merged image" />
+    </div>
+    <div style="margin-top: 100px">
+      <button
+        id="getBlobBtn"
         style="
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
+          padding: 10px;
+          background-color: blue;
+          cursor: pointer;
+          color: #ffffff;
         "
       >
-        <div style="display: flex; align-items: center">
-          <button
-            id="maskingBtn"
-            style="
-              background-color: black;
-              color: #ffffff;
-              padding: 10px;
-              margin-bottom: 15px;
-              cursor: pointer;
-            "
-          >
-            Masking Mode
-          </button>
-          <select id="selection">
-            <option value="brush">brush</option>
-            <option value="eraser">eraser</option>
-          </select>
-          <input type="number" id="pixelInput" />
-        </div>
-        <div style="display: flex; align-items: center">
-          <input id="imageInput" accept="image/*" type="file" />
-          <button
-            id="canvasBtn"
-            style="padding: 10px; background-color: skyblue; cursor: pointer"
-          >
-            upload image
-          </button>
-          <button
-            id="canvasBtn2"
-            style="padding: 10px; background-color: red; cursor: pointer"
-          >
-            delete image
-          </button>
-        </div>
-      </div>
+        get image blob
+      </button>
+      <button
+        id="getMaskingBlobBtn"
+        style="
+          padding: 10px;
+          background-color: orange;
+          cursor: pointer;
+          color: #ffffff;
+        "
+      >
+        get masking blob
+      </button>
     </div>
-
+    <div style="min-height: 500px"></div>
     <script type="module" src="/src/index.ts"></script>
   </body>
 </html>

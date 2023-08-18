@@ -1,115 +1,136 @@
 import { fabric } from "fabric";
+import Konva from "konva";
+import { Group } from "konva/lib/Group";
+import { Shape, ShapeConfig } from "konva/lib/Shape";
+import { Stage } from "konva/lib/Stage";
+import { Transformer } from "konva/lib/shapes/Transformer";
 
 const inpainter = (function () {
   let imageStackCanvas = null as null | fabric.Canvas;
   let drawingCanvas = {
     context: null as null | CanvasRenderingContext2D,
     canvas: null as null | HTMLCanvasElement,
-    color: "#FFFFFF",
-    strokeWidth: 15,
+    color: null as null | string,
+    strokeWidth: null as null | number,
   };
-  let selectedImage = null as null | fabric.Image;
+  let zoomSize = 1;
+  let selectedImage = null as null | Konva.Group;
+  let konvaStage = null as null | Konva.Stage;
+  let imageLayer = null as null | Konva.Layer;
+  let imageGroup = null as null | Konva.Group;
+
+  let trImageArr: Transformer[] = [];
+  let drawingLayer = null as null | Konva.Layer;
+  let drawingModeOn = false;
+  let drawingMode = "brush";
+
+  let isPaint = false;
+  let lineGroup = null as null | Konva.Group;
+  let lastLine = null as null | Konva.Line;
+  let imageId = 0;
+
+  let undoStack = [] as {
+    layer1State: Konva.Layer | undefined;
+    layer2State: Konva.Layer | undefined;
+  }[];
+
+  let redoStack = [] as {
+    layer1State: Konva.Layer | undefined;
+    layer2State: Konva.Layer | undefined;
+  }[];
 
   return {
-    createDrawingCanvas(id: string) {
-      let latestPoint = [0, 0];
-      let drawing = false;
-      const canvas = document.querySelector(id) as HTMLCanvasElement;
-      if (canvas !== null) {
-        const context = canvas.getContext("2d");
+    saveState() {
+      if (konvaStage !== null) {
+        undoStack.push({
+          layer1State: imageLayer?.clone(),
+          layer2State: drawingLayer?.clone(),
+        });
+      }
+    },
+    undo() {
+      if (undoStack.length > 0) {
+        const state = undoStack.pop();
+        if (state !== undefined) {
+          redoStack.push(state);
 
-        if (context !== null) {
-          drawingCanvas.context = context;
-          drawingCanvas.canvas = canvas;
-          const continueStroke = (newPoint: number[]) => {
-            context.beginPath();
-            context.moveTo(latestPoint[0], latestPoint[1]);
-            context.strokeStyle = drawingCanvas.color;
-            context.lineWidth = drawingCanvas.strokeWidth;
-            context.lineCap = "round";
-            context.lineJoin = "round";
-            context.lineTo(newPoint[0], newPoint[1]);
-            context.stroke();
+          if (
+            imageLayer !== null &&
+            state.layer1State !== undefined &&
+            state.layer1State?.children?.length !== 0
+          ) {
+            imageLayer.destroyChildren();
+            state.layer1State.children?.forEach(function (
+              node: Shape<ShapeConfig> | Group
+            ) {
+              if (imageLayer !== null) imageLayer.add(node);
+            });
+            imageLayer.batchDraw();
+          }
 
-            latestPoint = newPoint;
-          };
+          if (
+            drawingLayer !== null &&
+            state.layer2State !== undefined &&
+            state.layer2State.children?.length !== 0
+          ) {
+            drawingLayer.destroyChildren();
 
-          // Event helpers
-
-          const startStroke = (point: number[]) => {
-            drawing = true;
-            latestPoint = point;
-          };
-
-          // Event handlers
-
-          const mouseMove = (evt: Event) => {
-            if (!drawing) {
-              return;
-            }
-
-            continueStroke([
-              (<MouseEvent>evt).offsetX,
-              (<MouseEvent>evt).offsetY,
-            ]);
-          };
-
-          const mouseDown = (evt: MouseEvent) => {
-            if (drawing) {
-              return;
-            }
-            evt.preventDefault();
-            canvas.addEventListener("mousemove", mouseMove, false);
-            startStroke([evt.offsetX, evt.offsetY]);
-          };
-
-          const mouseEnter = (evt: MouseEvent) => {
-            if (!drawing) {
-              return;
-            }
-            mouseDown(evt);
-          };
-
-          const endStroke = (evt: MouseEvent) => {
-            if (!drawing) {
-              return;
-            }
-            drawing = false;
-            if (evt.currentTarget !== null) {
-              evt.currentTarget.removeEventListener(
-                "mousemove",
-                mouseMove,
-                false
-              );
-            }
-          };
-
-          // event listeners
-          canvas.addEventListener("mousedown", mouseDown, false);
-          canvas.addEventListener("mouseup", endStroke, false);
-          canvas.addEventListener("mouseout", endStroke, false);
-          canvas.addEventListener("mouseenter", mouseEnter, false);
-
-          return { canvas, context };
-        } else {
-          return { canvas: null, context: null };
+            state.layer2State.children?.forEach(function (
+              node: Shape<ShapeConfig> | Group
+            ) {
+              if (drawingLayer !== null) drawingLayer.add(node);
+            });
+            drawingLayer.batchDraw();
+          }
         }
       }
-      return { canvas: null, context: null };
     },
-    setDrawingMode(mode: string) {
-      if (drawingCanvas.context !== null) {
-        drawingCanvas.context.globalCompositeOperation =
-          mode === "brush" ? "source-over" : "destination-out";
+    redo() {
+      if (redoStack.length > 0) {
+        const state = redoStack.pop();
+        if (state !== undefined) {
+          undoStack.push(state);
+          if (
+            imageLayer !== null &&
+            state.layer1State !== undefined &&
+            state.layer1State.children?.length !== 0
+          ) {
+            imageLayer.destroyChildren();
+            state.layer1State.children?.forEach(function (
+              node: Shape<ShapeConfig> | Group
+            ) {
+              if (imageLayer !== null) imageLayer.add(node);
+            });
+            imageLayer.batchDraw();
+          }
+          if (
+            drawingLayer !== null &&
+            state.layer2State !== undefined &&
+            state.layer2State.children?.length !== 0
+          ) {
+            drawingLayer.destroyChildren();
+            state.layer2State.children?.forEach(function (
+              node: Shape<ShapeConfig> | Group
+            ) {
+              if (drawingLayer !== null) drawingLayer.add(node);
+            });
+            drawingLayer.batchDraw();
+          }
+        }
       }
     },
-    setStrokeWidth(width: number) {
-      drawingCanvas.strokeWidth = width;
+    init() {
+      imageLayer = new Konva.Layer();
+      imageGroup = new Konva.Group({ name: "imageGroup", draggable: true });
     },
-    setBrushColor(color: string) {
-      drawingCanvas.color = color;
+    detachAllTransformer() {
+      if (trImageArr !== null) {
+        trImageArr.forEach((tr) => {
+          tr?.detach();
+        });
+      }
     },
-    createImageCanvas({
+    createBaseKonvaStage({
       id,
       width,
       height,
@@ -121,96 +142,268 @@ const inpainter = (function () {
       backgroundColor: string;
     }) {
       try {
-        imageStackCanvas = new fabric.Canvas(id, {
-          backgroundColor: backgroundColor,
-          preserveObjectStacking: true,
+        konvaStage = new Konva.Stage({
+          container: id,
+          width,
+          height,
         });
-        imageStackCanvas.setWidth(width);
-        imageStackCanvas.setHeight(height);
-        return imageStackCanvas;
+        konvaStage.container().style.backgroundColor = backgroundColor;
+        konvaStage.container().style.width = `${width}px`;
+        konvaStage.container().style.height = `${height}px`;
+        konvaStage.container().style.border = "1px solid black";
+
+        konvaStage.on("mousedown", (e) => {
+          if (!e.target.name().includes("_anchor") && imageLayer !== null) {
+            this.detachAllTransformer();
+            selectedImage = null;
+            imageLayer.draw();
+          }
+        });
+
+        return konvaStage;
       } catch (e) {
         console.error(e);
         return null;
       }
     },
-    addImageLayer(src: string) {
-      (function () {
-        fabric.Image.fromURL(src, function (oImg: fabric.Image) {
-          if (imageStackCanvas !== null) {
-            oImg.set("left", 0).set("top", 0);
-            oImg.on("selected", function () {
-              selectedImage = oImg;
-            });
-            imageStackCanvas.add(oImg);
+    addNewTransformerNode(node: Konva.Node) {
+      const tr = new Konva.Transformer({ id: `${imageId}` });
+      tr.nodes([node]);
+      trImageArr.push(tr);
+      imageId++;
+      tr.detach();
+      return tr;
+    },
+    detachTransformer(imgNode: Konva.Shape | Stage) {
+      if (trImageArr !== null) {
+        trImageArr.forEach((tr) => {
+          if (tr.id() !== imgNode.id()) {
+            tr.detach();
+          } else {
+            tr.nodes([imgNode]);
           }
         });
-      })();
+      }
+    },
+    addImageLayer(src: string) {
+      const addNewTransformerFunction = this.addNewTransformerNode;
+      const detachTransformer = this.detachTransformer;
+
+      if (konvaStage !== null && imageGroup !== null && imageLayer !== null) {
+        const imageObj = new Image();
+        imageObj.src = src;
+
+        imageObj.onload = function () {
+          if (konvaStage === null || imageGroup === null || imageLayer === null)
+            return;
+          const image = new Konva.Image({
+            image: imageObj,
+            width: imageObj.width,
+            height: imageObj.height,
+            x: 0,
+            y: 0,
+            draggable: true,
+            id: `${imageId}`,
+          });
+
+          const trImageGroup = new Konva.Group({
+            name: "trImageGroup",
+          });
+
+          const tr = addNewTransformerFunction(image);
+          trImageGroup.add(image, tr);
+          imageGroup.add(trImageGroup);
+          imageLayer.add(imageGroup);
+          konvaStage.add(imageLayer);
+
+          if (drawingLayer !== null) drawingLayer?.moveToTop();
+          image.on("mousedown touchstart", function (e) {
+            e.cancelBubble = true;
+            if (imageLayer !== null) {
+              detachTransformer(image);
+              selectedImage = trImageGroup;
+              imageLayer.draw();
+            }
+          });
+
+          image.on("mouseover", function () {
+            document.body.style.cursor = "pointer";
+          });
+
+          image.on("mouseout", function () {
+            document.body.style.cursor = "default";
+          });
+        };
+      }
     },
     bringForward() {
-      if (selectedImage !== null && imageStackCanvas !== null) {
-        imageStackCanvas.bringForward(selectedImage);
+      if (selectedImage !== null) {
+        selectedImage.moveUp();
       }
     },
     bringToFront() {
-      if (selectedImage !== null && imageStackCanvas !== null) {
-        imageStackCanvas.bringToFront(selectedImage);
+      if (selectedImage !== null) {
+        selectedImage.moveToTop();
       }
     },
     bringBack() {
-      if (selectedImage !== null && imageStackCanvas !== null) {
-        imageStackCanvas.sendToBack(selectedImage);
+      if (selectedImage !== null) {
+        selectedImage.moveToBottom();
       }
     },
     bringToBackward() {
-      if (selectedImage !== null && imageStackCanvas !== null) {
-        imageStackCanvas.sendBackwards(selectedImage);
+      if (selectedImage !== null) {
+        selectedImage.moveDown();
       }
     },
     deleteImage() {
-      if (selectedImage !== null && imageStackCanvas !== null) {
-        imageStackCanvas.remove(selectedImage);
+      if (selectedImage !== null) {
+        selectedImage.destroy();
       }
     },
-    cloneCanvas(oldCanvas: HTMLCanvasElement) {
-      const newCanvas = document.createElement("canvas");
-      const context = newCanvas.getContext("2d");
+    isDrawingModeOn() {
+      return drawingModeOn;
+    },
 
-      newCanvas.width = oldCanvas.width;
-      newCanvas.height = oldCanvas.height;
+    createDrawingCanvas({
+      color,
+      strokeWidth,
+    }: {
+      color: string;
+      strokeWidth: number;
+    }) {
+      if (lineGroup === null) {
+        lineGroup = new Konva.Group({ name: "lineGroup", draggable: false });
+      }
+      if (konvaStage === null) return;
+      drawingLayer = new Konva.Layer();
+      konvaStage.add(drawingLayer);
+      konvaStage.on("mousedown", function () {
+        if (konvaStage === null || !drawingModeOn) return;
+        isPaint = true;
+        const pos = konvaStage.getPointerPosition();
 
-      if (context !== null) {
-        context.drawImage(oldCanvas, 0, 0);
+        lastLine = new Konva.Line({
+          stroke: drawingCanvas.color ?? color,
+          strokeWidth: drawingCanvas.strokeWidth ?? strokeWidth,
+          globalCompositeOperation:
+            drawingMode === "brush" ? "source-over" : "destination-out",
+          lineCap: "round",
+          lineJoin: "round",
+          points: [pos?.x ?? 0, pos?.y ?? 0, pos?.x ?? 0, pos?.y ?? 0],
+        });
+
+        if (lineGroup !== null && drawingLayer !== null) {
+          lineGroup.add(lastLine);
+          drawingLayer.add(lineGroup);
+        }
+      });
+
+      konvaStage.on("mouseup", function () {
+        isPaint = false;
+      });
+
+      // and core function - drawing
+      konvaStage.on("mousemove", function (e) {
+        if (!isPaint || lastLine === null || konvaStage === null) {
+          return;
+        }
+
+        // prevent scrolling on touch devices
+        e.evt.preventDefault();
+
+        const pos = konvaStage.getPointerPosition();
+
+        const newPoints = lastLine.points().concat([pos?.x ?? 0, pos?.y ?? 0]);
+        lastLine.points(newPoints);
+      });
+    },
+    activateDrawingMode() {
+      if (!drawingModeOn) {
+        imageGroup?.listening(false);
+        lineGroup?.show();
+        drawingLayer?.moveToTop();
+        this.detachAllTransformer();
+      } else {
+        imageGroup?.listening(true);
+        lineGroup?.hide();
       }
 
-      return { canvas: newCanvas, context };
+      drawingModeOn = !drawingModeOn;
+    },
+    setDrawingMode(mode: string) {
+      drawingMode = mode;
+    },
+    setStrokeWidth(width: number) {
+      drawingCanvas.strokeWidth = width;
+    },
+    setStrokeColor(color: string) {
+      drawingCanvas.color = color;
     },
     canvasToDataUrl(type: string) {
       if (type === "image") {
-        if (imageStackCanvas !== null) {
-          const pngURL = imageStackCanvas.toDataURL();
-          return pngURL;
+        if (imageLayer !== null && konvaStage !== null) {
+          if (selectedImage !== null) {
+            if (selectedImage.children) {
+              const tr = selectedImage.children[1] as Transformer;
+              const image = selectedImage.children[0] as Konva.Image;
+              tr.detach();
+
+              const pngURL = imageLayer.toDataURL();
+              tr.nodes([image]);
+              return pngURL;
+            } else {
+              return "";
+            }
+          } else {
+            const pngURL = imageLayer.toDataURL();
+            return pngURL;
+          }
         } else {
           return "";
         }
       } else if (type === "mask") {
-        if (drawingCanvas.canvas !== null && drawingCanvas.context !== null) {
-          const { canvas, context } = this.cloneCanvas(drawingCanvas.canvas);
+        if (konvaStage === null) return "";
+        // 가상의 div element를 만들어서 새로운 konva stage에 바인딩시켜준다.
+        const divElement = document.createElement("div");
+        divElement.style.display = "none";
+        divElement.id = "$#%-masking-container-of-inpainter-$#";
+        document.body.appendChild(divElement);
+
+        let newKonvaStage = new Konva.Stage({
+          container: "$#%-masking-container-of-inpainter-$#",
+          width: konvaStage.toCanvas().width,
+          height: konvaStage.toCanvas().height,
+        }) as Konva.Stage | null;
+        if (!lineGroup || !newKonvaStage) return "";
+
+        newKonvaStage.container().style.backgroundColor = "black";
+        newKonvaStage.container().style.width = `${900}px`;
+        newKonvaStage.container().style.height = `${700}px`;
+
+        // 새로 만든 Konva Stage에 마스킹한 부분을 레이어로 쌓고, canvas로 컨버팅해준다.
+        const layer = new Konva.Layer();
+        layer.add(lineGroup.clone());
+        newKonvaStage.add(layer);
+        const drawingCanvas = newKonvaStage.toCanvas();
+
+        newKonvaStage = null;
+        divElement.remove();
+
+        // 캔버스로 컨버팅을 마쳤으면 anti-aliasing을 모든 색을 흰색, 검정색 조합으로 바꿔주는 방향으로 해결한다.
+        if (drawingCanvas !== undefined) {
+          const context = drawingCanvas.getContext("2d");
           if (context !== null) {
             context.globalCompositeOperation = "destination-over";
             context.fillStyle = "black";
-            context.fillRect(
-              0,
-              0,
-              drawingCanvas.canvas.width,
-              drawingCanvas.canvas.height
-            );
-            context.drawImage(canvas, 0, 0);
+            context.fillRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+            context.drawImage(drawingCanvas, 0, 0);
 
             const imgData = context.getImageData(
               0,
               0,
-              canvas.width,
-              canvas.height
+              drawingCanvas.width,
+              drawingCanvas.height
             );
 
             for (let i = 0; i < imgData.data.length; i += 4) {
@@ -226,7 +419,8 @@ const inpainter = (function () {
             }
 
             context.putImageData(imgData, 0, 0);
-            const pngURL = canvas.toDataURL();
+            const pngURL = drawingCanvas.toDataURL();
+
             return pngURL;
           } else {
             return "";
@@ -250,15 +444,31 @@ const inpainter = (function () {
       const bb = new Blob([ab], { type: mimeString });
       return bb;
     },
-    imageCanvasToBlob() {
+    imageCanvasToBlob(): null | Blob {
       const dataURI = this.canvasToDataUrl("image");
+      if (dataURI === "") return null;
+
       const blob = this.dataURItoBlob(dataURI);
       return blob;
     },
-    drawingCanvasToBlob() {
+    drawingCanvasToBlob(): null | Blob {
       const dataURI = this.canvasToDataUrl("mask");
+      if (dataURI === "") return null;
       const blob = this.dataURItoBlob(dataURI);
       return blob;
+    },
+    controlZoom(flag: string) {
+      if (imageStackCanvas && drawingCanvas.context) {
+        if (flag === "+") {
+          zoomSize += 0.06;
+          imageStackCanvas.setZoom(zoomSize);
+          drawingCanvas.context.scale(zoomSize, zoomSize);
+        } else if (flag === "-") {
+          zoomSize -= 0.06;
+          imageStackCanvas.setZoom(zoomSize);
+          drawingCanvas.context.scale(zoomSize, zoomSize);
+        }
+      }
     },
   };
 })();
@@ -267,4 +477,11 @@ export default inpainter;
 
 // - zoom in & zoom out
 // - 마우스 커서 동그랗게
-// - masking 내용 reset(삭제)
+// - 어느 순간부터 brush 커서 위치와 실제로 stroke가 그어지는 지점이 안맞음
+// - masking 껐다 켰다 할 때 z-indexing
+// - 이미지 transformer 껐다 켰다하기
+
+// 1. bounding box style customizing 가능한지 + grid & dot를 캔버스에 그릴 수 있는지(그 그리드에 object가 들어맞는? 마그네틱 기능? - 우선순위 낮긴함)
+// 2. zoom in/out
+// 3. undo / redo
+// 4. inifinity canvas

@@ -2,15 +2,16 @@
 
 import inpainter from "./main";
 
-const result = inpainter.createImageCanvas({
+const result = inpainter.createBaseKonvaStage({
   id: "app",
   width: 900,
   height: 700,
   backgroundColor: "skyblue",
 });
-const { canvas, context } = inpainter.createDrawingCanvas("#masking");
 
-if (result !== null && canvas !== null && context !== null) {
+inpainter.createDrawingCanvas({ color: "#ffffff", strokeWidth: 60 });
+inpainter.init();
+if (result !== null) {
   const imageInputElement = document.querySelector(
     "#imageInput"
   ) as HTMLInputElement;
@@ -45,6 +46,7 @@ if (result !== null && canvas !== null && context !== null) {
     ) as HTMLImageElement;
     const url = inpainter.canvasToDataUrl("image");
     mergedImageElement.src = url;
+    mergedImageElement.style.border = "1px solid black";
   });
 
   const bringToFrontBtnElement = document.querySelector(
@@ -100,19 +102,15 @@ if (result !== null && canvas !== null && context !== null) {
     "#maskingBtn"
   ) as HTMLButtonElement;
 
-  const maskingCanvasElement = document.querySelector(
-    "#masking"
-  ) as HTMLCanvasElement;
-
   maskingBtnElement.addEventListener("click", function () {
-    if (maskingCanvasElement) {
-      if (maskingCanvasElement.style.display === "block") {
-        maskingCanvasElement.style.display = "none";
-      } else {
-        maskingCanvasElement.style.display = "block";
-      }
+    inpainter.activateDrawingMode();
+    if (inpainter.isDrawingModeOn()) {
+      maskingBtnElement.style.background = "green";
+      maskingBtnElement.textContent = "masking mode status : on";
+    } else {
+      maskingBtnElement.style.background = "red";
+      maskingBtnElement.textContent = "masking mode status : off";
     }
-    // }
   });
 
   const pixelInput = document.querySelector("#pixelInput") as HTMLInputElement;
@@ -130,6 +128,7 @@ if (result !== null && canvas !== null && context !== null) {
     ) as HTMLImageElement;
     const url = inpainter.canvasToDataUrl("mask");
     mergedImageElement.src = url;
+    mergedImageElement.style.border = "1px solid black";
   });
 
   // Drawing functions
@@ -149,5 +148,29 @@ if (result !== null && canvas !== null && context !== null) {
 
   canvasBtn2Element.addEventListener("click", function () {
     inpainter.deleteImage();
+  });
+}
+const colorSelect = document.querySelector("#colorSelection");
+
+if (colorSelect !== null) {
+  colorSelect.addEventListener("change", function (e) {
+    const color = (e.target as HTMLTextAreaElement).value;
+    inpainter.setStrokeColor(color);
+  });
+}
+
+const undoBtnElement = document.querySelector("#undoBtn");
+
+if (undoBtnElement !== null) {
+  undoBtnElement.addEventListener("click", function (e) {
+    inpainter.undo();
+  });
+}
+
+const redoBtnElement = document.querySelector("#redoBtn");
+
+if (redoBtnElement !== null) {
+  redoBtnElement.addEventListener("click", function (e) {
+    inpainter.redo();
   });
 }
