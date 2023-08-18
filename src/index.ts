@@ -162,7 +162,7 @@ if (colorSelect !== null) {
 const undoBtnElement = document.querySelector("#undoBtn");
 
 if (undoBtnElement !== null) {
-  undoBtnElement.addEventListener("click", function (e) {
+  undoBtnElement.addEventListener("click", function () {
     inpainter.undo();
   });
 }
@@ -170,7 +170,7 @@ if (undoBtnElement !== null) {
 const redoBtnElement = document.querySelector("#redoBtn");
 
 if (redoBtnElement !== null) {
-  redoBtnElement.addEventListener("click", function (e) {
+  redoBtnElement.addEventListener("click", function () {
     inpainter.redo();
   });
 }

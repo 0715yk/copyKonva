@@ -159,7 +159,39 @@ const inpainter = (function () {
             imageLayer.draw();
           }
         });
+        const scaleBy = 1.01;
+        konvaStage.on("wheel", (e) => {
+          // stop default scrolling
+          e.evt.preventDefault();
+          if (konvaStage === null) return;
+          const oldScale = konvaStage.scaleX();
+          const pointer = konvaStage.getPointerPosition();
+          if (pointer === null) return;
+          const mousePointTo = {
+            x: (pointer.x - konvaStage.x()) / oldScale,
+            y: (pointer.y - konvaStage.y()) / oldScale,
+          };
 
+          // how to scale? Zoom in? Or zoom out?
+          let direction = e.evt.deltaY > 0 ? 1 : -1;
+
+          // when we zoom on trackpad, e.evt.ctrlKey is true
+          // in that case lets revert direction
+          if (e.evt.ctrlKey) {
+            direction = -direction;
+          }
+
+          const newScale =
+            direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
+
+          konvaStage.scale({ x: newScale, y: newScale });
+
+          const newPos = {
+            x: pointer.x - mousePointTo.x * newScale,
+            y: pointer.y - mousePointTo.y * newScale,
+          };
+          konvaStage.position(newPos);
+        });
         return konvaStage;
       } catch (e) {
         console.error(e);
