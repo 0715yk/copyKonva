@@ -10,7 +10,7 @@ const result = inpainter.createBaseKonvaStage({
 });
 
 inpainter.createDrawingCanvas({ color: "#ffffff", strokeWidth: 60 });
-inpainter.init();
+
 if (result !== null) {
   const imageInputElement = document.querySelector(
     "#imageInput"

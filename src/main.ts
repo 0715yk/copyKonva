@@ -17,7 +17,6 @@ const inpainter = (function () {
   let selectedImage = null as null | Konva.Group;
   let konvaStage = null as null | Konva.Stage;
   let imageLayer = null as null | Konva.Layer;
-  let imageGroup = null as null | Konva.Group;
 
   let trImageArr: Transformer[] = [];
   let drawingLayer = null as null | Konva.Layer;
@@ -29,58 +28,78 @@ const inpainter = (function () {
   let lastLine = null as null | Konva.Line;
   let imageId = 0;
 
-  let undoStack = [] as {
-    layer1State: Konva.Layer | undefined;
-    layer2State: Konva.Layer | undefined;
-  }[];
+  let undoStack = [] as { stage: string; src: string; name: string }[];
 
-  let redoStack = [] as {
-    layer1State: Konva.Layer | undefined;
-    layer2State: Konva.Layer | undefined;
-  }[];
+  let redoStack = [] as string[];
 
   return {
-    saveState() {
+    regenerageImageLayer(src: string) {
+      if (konvaStage !== null && imageLayer !== null) {
+        const imageObj = new Image();
+        imageObj.src = src;
+
+        imageObj.onload = function () {
+          if (konvaStage === null || imageLayer === null) return;
+          const image = new Konva.Image({
+            image: imageObj,
+            width: imageObj.width,
+            height: imageObj.height,
+            x: 0,
+            y: 0,
+            draggable: true,
+            id: `${imageId}`,
+          });
+
+          const trImageGroup = new Konva.Group({
+            name: "trImageGroup",
+          });
+
+          // const tr = addNewTransformerFunction(image);
+          // trImageGroup.add(image, tr);
+          // imageGroup.add(trImageGroup);
+          // imageLayer.add(imageGroup);
+          // konvaStage.add(imageLayer);
+
+          // if (drawingLayer !== null) drawingLayer?.moveToTop();
+          // image.on("mousedown touchstart", function (e) {
+          //   e.cancelBubble = true;
+          //   if (imageLayer !== null) {
+          //     detachTransformer(image);
+          //     selectedImage = trImageGroup;
+          //     imageLayer.draw();
+          //   }
+          // });
+
+          // image.on("mouseover", function () {
+          //   document.body.style.cursor = "pointer";
+          // });
+
+          // image.on("mouseout", function () {
+          //   document.body.style.cursor = "default";
+          // });
+        };
+      }
+    },
+    saveState(object: string, src: string) {
       if (konvaStage !== null) {
-        undoStack.push({
-          layer1State: imageLayer?.clone(),
-          layer2State: drawingLayer?.clone(),
-        });
+        undoStack.push({ stage: konvaStage.toJSON(), name: object, src: src });
       }
     },
     undo() {
       if (undoStack.length > 0) {
         const state = undoStack.pop();
         if (state !== undefined) {
-          redoStack.push(state);
-
-          if (
-            imageLayer !== null &&
-            state.layer1State !== undefined &&
-            state.layer1State?.children?.length !== 0
-          ) {
-            imageLayer.destroyChildren();
-            state.layer1State.children?.forEach(function (
-              node: Shape<ShapeConfig> | Group
-            ) {
-              if (imageLayer !== null) imageLayer.add(node);
+          // redoStack.push(state);
+          const lastAction = undoStack[undoStack.length - 1];
+          const stage = Konva.Node.create(lastAction.stage, "app");
+          if (stage.children.length !== 0) {
+            stage.children.forEach((el: Konva.Layer) => {
+              const copyChildren = el.children?.slice();
+              el.destroyChildren();
+              copyChildren?.forEach((_image) => {
+                this.regenerageImageLayer(lastAction.src);
+              });
             });
-            imageLayer.batchDraw();
-          }
-
-          if (
-            drawingLayer !== null &&
-            state.layer2State !== undefined &&
-            state.layer2State.children?.length !== 0
-          ) {
-            drawingLayer.destroyChildren();
-
-            state.layer2State.children?.forEach(function (
-              node: Shape<ShapeConfig> | Group
-            ) {
-              if (drawingLayer !== null) drawingLayer.add(node);
-            });
-            drawingLayer.batchDraw();
           }
         }
       }
@@ -89,40 +108,10 @@ const inpainter = (function () {
       if (redoStack.length > 0) {
         const state = redoStack.pop();
         if (state !== undefined) {
-          undoStack.push(state);
-          if (
-            imageLayer !== null &&
-            state.layer1State !== undefined &&
-            state.layer1State.children?.length !== 0
-          ) {
-            imageLayer.destroyChildren();
-            state.layer1State.children?.forEach(function (
-              node: Shape<ShapeConfig> | Group
-            ) {
-              if (imageLayer !== null) imageLayer.add(node);
-            });
-            imageLayer.batchDraw();
-          }
-          if (
-            drawingLayer !== null &&
-            state.layer2State !== undefined &&
-            state.layer2State.children?.length !== 0
-          ) {
-            drawingLayer.destroyChildren();
-            state.layer2State.children?.forEach(function (
-              node: Shape<ShapeConfig> | Group
-            ) {
-              if (drawingLayer !== null) drawingLayer.add(node);
-            });
-            drawingLayer.batchDraw();
-          }
         }
       }
     },
-    init() {
-      imageLayer = new Konva.Layer();
-      imageGroup = new Konva.Group({ name: "imageGroup", draggable: true });
-    },
+
     detachAllTransformer() {
       if (trImageArr !== null) {
         trImageArr.forEach((tr) => {
@@ -153,7 +142,7 @@ const inpainter = (function () {
         konvaStage.container().style.border = "1px solid black";
 
         konvaStage.on("mousedown", (e) => {
-          if (!e.target.name().includes("_anchor") && imageLayer !== null) {
+          if (e.target.getClassName() === "Stage" && imageLayer !== null) {
             this.detachAllTransformer();
             selectedImage = null;
             imageLayer.draw();
@@ -192,17 +181,17 @@ const inpainter = (function () {
           };
           konvaStage.position(newPos);
         });
+        this.saveState("none", "none");
         return konvaStage;
       } catch (e) {
         console.error(e);
         return null;
       }
     },
-    addNewTransformerNode(node: Konva.Node) {
-      const tr = new Konva.Transformer({ id: `${imageId}` });
+    addNewTransformerNode(node: Konva.Node, id: string) {
+      const tr = new Konva.Transformer({ id });
       tr.nodes([node]);
       trImageArr.push(tr);
-      imageId++;
       tr.detach();
       return tr;
     },
@@ -217,17 +206,26 @@ const inpainter = (function () {
         });
       }
     },
+    getUniqueId(): string {
+      return imageId++ + "";
+    },
+
     addImageLayer(src: string) {
+      const imageId = this.getUniqueId();
       const addNewTransformerFunction = this.addNewTransformerNode;
       const detachTransformer = this.detachTransformer;
+      if (konvaStage !== null) {
+        if (imageLayer === null) {
+          imageLayer = new Konva.Layer();
+          konvaStage.add(imageLayer);
+        }
 
-      if (konvaStage !== null && imageGroup !== null && imageLayer !== null) {
         const imageObj = new Image();
         imageObj.src = src;
-
+        const saveState = this.saveState;
         imageObj.onload = function () {
-          if (konvaStage === null || imageGroup === null || imageLayer === null)
-            return;
+          if (konvaStage === null || imageLayer === null) return;
+
           const image = new Konva.Image({
             image: imageObj,
             width: imageObj.width,
@@ -235,18 +233,17 @@ const inpainter = (function () {
             x: 0,
             y: 0,
             draggable: true,
-            id: `${imageId}`,
+            id: imageId,
           });
 
           const trImageGroup = new Konva.Group({
             name: "trImageGroup",
           });
 
-          const tr = addNewTransformerFunction(image);
+          const tr = addNewTransformerFunction(image, imageId);
           trImageGroup.add(image, tr);
-          imageGroup.add(trImageGroup);
-          imageLayer.add(imageGroup);
-          konvaStage.add(imageLayer);
+
+          imageLayer.add(trImageGroup);
 
           if (drawingLayer !== null) drawingLayer?.moveToTop();
           image.on("mousedown touchstart", function (e) {
@@ -265,6 +262,7 @@ const inpainter = (function () {
           image.on("mouseout", function () {
             document.body.style.cursor = "default";
           });
+          saveState(image.name(), src);
         };
       }
     },
@@ -352,12 +350,12 @@ const inpainter = (function () {
     },
     activateDrawingMode() {
       if (!drawingModeOn) {
-        imageGroup?.listening(false);
+        imageLayer?.listening(false);
         lineGroup?.show();
         drawingLayer?.moveToTop();
         this.detachAllTransformer();
       } else {
-        imageGroup?.listening(true);
+        imageLayer?.listening(true);
         lineGroup?.hide();
       }
 
