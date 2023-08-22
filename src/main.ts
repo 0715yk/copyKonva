@@ -1,19 +1,12 @@
-import { fabric } from "fabric";
 import Konva from "konva";
-import { Group } from "konva/lib/Group";
-import { Shape, ShapeConfig } from "konva/lib/Shape";
 import { Stage } from "konva/lib/Stage";
 import { Transformer } from "konva/lib/shapes/Transformer";
 
 const inpainter = (function () {
-  let imageStackCanvas = null as null | fabric.Canvas;
   let drawingCanvas = {
-    context: null as null | CanvasRenderingContext2D,
-    canvas: null as null | HTMLCanvasElement,
     color: null as null | string,
     strokeWidth: null as null | number,
   };
-  let zoomSize = 1;
   let selectedImage = null as null | Konva.Group;
   let konvaStage = null as null | Konva.Stage;
   let imageLayer = null as null | Konva.Layer;
@@ -55,53 +48,6 @@ const inpainter = (function () {
       )} ${Math.ceil(strokeWidth / 2)}, pointer`;
     },
 
-    regenerageImageLayer(src: string) {
-      if (konvaStage !== null && imageLayer !== null) {
-        const imageObj = new Image();
-        imageObj.src = src;
-
-        imageObj.onload = function () {
-          if (konvaStage === null || imageLayer === null) return;
-          const image = new Konva.Image({
-            image: imageObj,
-            width: imageObj.width,
-            height: imageObj.height,
-            x: 0,
-            y: 0,
-            draggable: true,
-            id: `${imageId}`,
-          });
-
-          const trImageGroup = new Konva.Group({
-            name: "trImageGroup",
-          });
-
-          // const tr = addNewTransformerFunction(image);
-          // trImageGroup.add(image, tr);
-          // imageGroup.add(trImageGroup);
-          // imageLayer.add(imageGroup);
-          // konvaStage.add(imageLayer);
-
-          // if (drawingLayer !== null) drawingLayer?.moveToTop();
-          // image.on("mousedown touchstart", function (e) {
-          //   e.cancelBubble = true;
-          //   if (imageLayer !== null) {
-          //     detachTransformer(image);
-          //     selectedImage = trImageGroup;
-          //     imageLayer.draw();
-          //   }
-          // });
-
-          // image.on("mouseover", function () {
-          //   document.body.style.cursor = "pointer";
-          // });
-
-          // image.on("mouseout", function () {
-          //   document.body.style.cursor = "default";
-          // });
-        };
-      }
-    },
     saveState(object: string, src: string) {
       if (konvaStage !== null) {
         undoStack.push({ stage: konvaStage.toJSON(), name: object, src: src });
@@ -115,13 +61,6 @@ const inpainter = (function () {
           const lastAction = undoStack[undoStack.length - 1];
           const stage = Konva.Node.create(lastAction.stage, "app");
           if (stage.children.length !== 0) {
-            stage.children.forEach((el: Konva.Layer) => {
-              const copyChildren = el.children?.slice();
-              el.destroyChildren();
-              copyChildren?.forEach((_image) => {
-                this.regenerageImageLayer(lastAction.src);
-              });
-            });
           }
         }
       }
@@ -384,7 +323,7 @@ const inpainter = (function () {
         if (drawingCanvas.strokeWidth !== null && drawingCanvas.color !== null)
           konvaStage.container().style.cursor = this.getDrawCursor(
             drawingCanvas.strokeWidth,
-            drawingCanvas.color
+            drawingMode === "eraser" ? "#044B94" : drawingCanvas.color
           );
       } else {
         if (
@@ -401,11 +340,13 @@ const inpainter = (function () {
     },
     setDrawingMode(mode: string) {
       drawingMode = mode;
+
       if (mode === "eraser") {
         if (
           konvaStage !== null &&
           drawingCanvas.color !== null &&
-          drawingCanvas.strokeWidth !== null
+          drawingCanvas.strokeWidth !== null &&
+          drawingModeOn
         ) {
           konvaStage.container().style.cursor = this.getDrawCursor(
             drawingCanvas.strokeWidth,
@@ -416,7 +357,8 @@ const inpainter = (function () {
         if (
           konvaStage !== null &&
           drawingCanvas.color !== null &&
-          drawingCanvas.strokeWidth !== null
+          drawingCanvas.strokeWidth !== null &&
+          drawingModeOn
         ) {
           konvaStage.container().style.cursor = this.getDrawCursor(
             drawingCanvas.strokeWidth,
@@ -427,19 +369,28 @@ const inpainter = (function () {
     },
     setStrokeWidth(width: number) {
       drawingCanvas.strokeWidth = width;
-      if (konvaStage !== null && drawingCanvas.color !== null) {
+      if (
+        konvaStage !== null &&
+        drawingCanvas.color !== null &&
+        drawingModeOn
+      ) {
         konvaStage.container().style.cursor = this.getDrawCursor(
           width,
-          drawingCanvas.color
+          drawingMode === "eraser" ? "#044B94" : drawingCanvas.color
         );
       }
     },
     setStrokeColor(color: string) {
       drawingCanvas.color = color;
-      if (konvaStage !== null && drawingCanvas.strokeWidth !== null) {
+
+      if (
+        konvaStage !== null &&
+        drawingCanvas.strokeWidth !== null &&
+        drawingModeOn
+      ) {
         konvaStage.container().style.cursor = this.getDrawCursor(
           drawingCanvas.strokeWidth,
-          color
+          drawingMode === "eraser" ? "#044B94" : color
         );
       }
     },
@@ -560,25 +511,7 @@ const inpainter = (function () {
       const blob = this.dataURItoBlob(dataURI);
       return blob;
     },
-    controlZoom(flag: string) {
-      if (imageStackCanvas && drawingCanvas.context) {
-        if (flag === "+") {
-          zoomSize += 0.06;
-          imageStackCanvas.setZoom(zoomSize);
-          drawingCanvas.context.scale(zoomSize, zoomSize);
-        } else if (flag === "-") {
-          zoomSize -= 0.06;
-          imageStackCanvas.setZoom(zoomSize);
-          drawingCanvas.context.scale(zoomSize, zoomSize);
-        }
-      }
-    },
   };
 })();
 
 export default inpainter;
-
-// 0. 마우스 커서 동그랗게
-// 1. bounding box style customizing 가능한지 + grid & dot를 캔버스에 그릴 수 있는지(그 그리드에 object가 들어맞는? 마그네틱 기능? - 우선순위 낮긴함)
-// 2. zoom in/out
-// 3. undo / redo
