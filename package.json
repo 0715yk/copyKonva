@@ -10,12 +10,11 @@
     "docs": "http-server -o ./docs/index.html"
   },
   "devDependencies": {
-    "@types/fabric": "^5.3.3",
     "typescript": "^5.1.6",
     "vite": "^4.4.9"
   },
   "dependencies": {
-    "fabric-image-maker": "^0.0.7",
-    "konva": "^9.2.0"
+    "konva": "^9.2.0",
+    "konva-image-maker": "^0.0.10"
   }
 }

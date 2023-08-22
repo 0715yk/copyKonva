@@ -1,6 +1,6 @@
-// import inpainter from "fabric-image-maker";
+import inpainter from "konva-image-maker";
 
-import inpainter from "./main";
+// import inpainter from "./main";
 
 const result = inpainter.createBaseKonvaStage({
   id: "app",
@@ -103,8 +103,8 @@ if (result !== null) {
   ) as HTMLButtonElement;
 
   maskingBtnElement.addEventListener("click", function () {
-    inpainter.activateDrawingMode();
-    if (inpainter.isDrawingModeOn()) {
+    const nowMode = inpainter.activateDrawingMode();
+    if (nowMode) {
       maskingBtnElement.style.background = "green";
       maskingBtnElement.textContent = "masking mode status : on";
     } else {
@@ -156,21 +156,5 @@ if (colorSelect !== null) {
   colorSelect.addEventListener("change", function (e) {
     const color = (e.target as HTMLTextAreaElement).value;
     inpainter.setStrokeColor(color);
-  });
-}
-
-const undoBtnElement = document.querySelector("#undoBtn");
-
-if (undoBtnElement !== null) {
-  undoBtnElement.addEventListener("click", function () {
-    inpainter.undo();
-  });
-}
-
-const redoBtnElement = document.querySelector("#redoBtn");
-
-if (redoBtnElement !== null) {
-  redoBtnElement.addEventListener("click", function () {
-    inpainter.redo();
   });
 }
