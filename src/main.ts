@@ -263,7 +263,7 @@ const inpainter = (function () {
             image.on("mouseout", function () {
               document.body.style.cursor = "default";
             });
-
+            selectedImage = trImageGroup;
             result = image;
           };
 
