@@ -33,6 +33,28 @@ const inpainter = (function () {
   let redoStack = [] as string[];
 
   return {
+    getDrawCursor(strokeWidth: number, brushColor: string) {
+      const circle = `
+      <svg
+        height="${strokeWidth}"
+        fill="${brushColor}"
+        viewBox="0 0 ${strokeWidth * 2} ${strokeWidth * 2}"
+        width="${strokeWidth}"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle
+          cx="50%"
+          cy="50%"
+          r="${strokeWidth}" 
+        />
+      </svg>
+    `;
+
+      return `url(data:image/svg+xml;base64,${window.btoa(circle)}) ${Math.ceil(
+        strokeWidth / 2
+      )} ${Math.ceil(strokeWidth / 2)}, pointer`;
+    },
+
     regenerageImageLayer(src: string) {
       if (konvaStage !== null && imageLayer !== null) {
         const imageObj = new Image();
@@ -140,7 +162,6 @@ const inpainter = (function () {
         konvaStage.container().style.width = `${width}px`;
         konvaStage.container().style.height = `${height}px`;
         konvaStage.container().style.border = "1px solid black";
-
         konvaStage.on("mousedown", (e) => {
           if (e.target.getClassName() === "Stage" && imageLayer !== null) {
             this.detachAllTransformer();
@@ -148,6 +169,7 @@ const inpainter = (function () {
             imageLayer.draw();
           }
         });
+
         const scaleBy = 1.01;
         konvaStage.on("wheel", (e) => {
           // stop default scrolling
@@ -308,6 +330,9 @@ const inpainter = (function () {
       if (konvaStage === null) return;
       drawingLayer = new Konva.Layer();
       konvaStage.add(drawingLayer);
+
+      drawingCanvas.color = color;
+      drawingCanvas.strokeWidth = strokeWidth;
       konvaStage.on("mousedown", function () {
         if (konvaStage === null || !drawingModeOn) return;
         isPaint = true;
@@ -332,7 +357,9 @@ const inpainter = (function () {
       konvaStage.on("mouseup", function () {
         isPaint = false;
       });
-
+      konvaStage.on("mouseleave", () => {
+        isPaint = false;
+      });
       // and core function - drawing
       konvaStage.on("mousemove", function (e) {
         if (!isPaint || lastLine === null || konvaStage === null) {
@@ -349,12 +376,23 @@ const inpainter = (function () {
       });
     },
     activateDrawingMode() {
-      if (!drawingModeOn) {
+      if (!drawingModeOn && konvaStage !== null) {
         imageLayer?.listening(false);
         lineGroup?.show();
         drawingLayer?.moveToTop();
         this.detachAllTransformer();
+        if (drawingCanvas.strokeWidth !== null && drawingCanvas.color !== null)
+          konvaStage.container().style.cursor = this.getDrawCursor(
+            drawingCanvas.strokeWidth,
+            drawingCanvas.color
+          );
       } else {
+        if (
+          drawingCanvas.strokeWidth !== null &&
+          drawingCanvas.color !== null &&
+          konvaStage !== null
+        )
+          konvaStage.container().style.cursor = "default";
         imageLayer?.listening(true);
         lineGroup?.hide();
       }
@@ -363,12 +401,47 @@ const inpainter = (function () {
     },
     setDrawingMode(mode: string) {
       drawingMode = mode;
+      if (mode === "eraser") {
+        if (
+          konvaStage !== null &&
+          drawingCanvas.color !== null &&
+          drawingCanvas.strokeWidth !== null
+        ) {
+          konvaStage.container().style.cursor = this.getDrawCursor(
+            drawingCanvas.strokeWidth,
+            "#044B94"
+          );
+        }
+      } else {
+        if (
+          konvaStage !== null &&
+          drawingCanvas.color !== null &&
+          drawingCanvas.strokeWidth !== null
+        ) {
+          konvaStage.container().style.cursor = this.getDrawCursor(
+            drawingCanvas.strokeWidth,
+            drawingCanvas.color
+          );
+        }
+      }
     },
     setStrokeWidth(width: number) {
       drawingCanvas.strokeWidth = width;
+      if (konvaStage !== null && drawingCanvas.color !== null) {
+        konvaStage.container().style.cursor = this.getDrawCursor(
+          width,
+          drawingCanvas.color
+        );
+      }
     },
     setStrokeColor(color: string) {
       drawingCanvas.color = color;
+      if (konvaStage !== null && drawingCanvas.strokeWidth !== null) {
+        konvaStage.container().style.cursor = this.getDrawCursor(
+          drawingCanvas.strokeWidth,
+          color
+        );
+      }
     },
     canvasToDataUrl(type: string) {
       if (type === "image") {
@@ -505,13 +578,7 @@ const inpainter = (function () {
 
 export default inpainter;
 
-// - zoom in & zoom out
-// - 마우스 커서 동그랗게
-// - 어느 순간부터 brush 커서 위치와 실제로 stroke가 그어지는 지점이 안맞음
-// - masking 껐다 켰다 할 때 z-indexing
-// - 이미지 transformer 껐다 켰다하기
-
+// 0. 마우스 커서 동그랗게
 // 1. bounding box style customizing 가능한지 + grid & dot를 캔버스에 그릴 수 있는지(그 그리드에 object가 들어맞는? 마그네틱 기능? - 우선순위 낮긴함)
 // 2. zoom in/out
 // 3. undo / redo
-// 4. inifinity canvas
