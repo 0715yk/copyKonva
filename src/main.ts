@@ -21,6 +21,12 @@ const inpainter = (function () {
   let lastLine = null as null | Konva.Line;
   let imageId = 0;
 
+  let canvasInfo = {
+    width: null as null | number,
+    height: null as null | number,
+  };
+
+  let newZoomScale = null as null | number;
   return {
     /**
      * 이미지 레이어에 하나 이상의 이미지가 올라가 있는 상태에만 작동하는 함수입니다.
@@ -33,7 +39,7 @@ const inpainter = (function () {
      *
      * @example
      * ```typescript
-    import inpainter from "fabric-image-maker";
+    import inpainter from "konva-image-maker";
 
     document.body.addEventListener("click", function (e: MouseEvent) {
       if (e.target !== null) {
@@ -66,7 +72,7 @@ const inpainter = (function () {
      *
      * @example
      * ```typescript
-      import inpainter from "fabric-image-maker";
+      import inpainter from "konva-image-maker";
 
       const stage = inpainter.createBaseKonvaStage({
         id: "app",
@@ -88,6 +94,8 @@ const inpainter = (function () {
       backgroundColor: string;
     }) {
       try {
+        canvasInfo.width = width;
+        canvasInfo.height = height;
         konvaStage = new Konva.Stage({
           container: id,
           width,
@@ -102,6 +110,42 @@ const inpainter = (function () {
           if (e.target.getClassName() === "Stage" && imageLayer !== null) {
             this.detachAllTransformer();
             selectedImage = null;
+          }
+        });
+
+        const scaleBy = 1.2;
+
+        konvaStage.on("wheel", (e) => {
+          if (konvaStage !== null) {
+            e.evt.preventDefault();
+            const oldScale = konvaStage.scaleX();
+
+            const center = {
+              x: konvaStage.width() / 2,
+              y: konvaStage.height() / 2,
+            };
+
+            const relatedTo = {
+              x: (center.x - konvaStage.x()) / oldScale,
+              y: (center.y - konvaStage.y()) / oldScale,
+            };
+
+            const newScale =
+              e.evt.deltaY > 0 ? oldScale * scaleBy : oldScale / scaleBy;
+
+            konvaStage.scale({
+              x: newScale,
+              y: newScale,
+            });
+
+            const newPos = {
+              x: center.x - relatedTo.x * newScale,
+              y: center.y - relatedTo.y * newScale,
+            };
+
+            konvaStage.position(newPos);
+            konvaStage.batchDraw();
+            newZoomScale = newScale;
           }
         });
 
@@ -240,7 +284,7 @@ const inpainter = (function () {
      *
      * @example
      * ```typescript
-    import inpainter from "fabric-image-maker";
+    import inpainter from "konva-image-maker";
 
     const bringForwardBtnElement = document.querySelector(
       "#bringForwardBtn"
@@ -265,7 +309,7 @@ const inpainter = (function () {
      *
      * @example
      * ```typescript
-    import inpainter from "fabric-image-maker";
+    import inpainter from "konva-image-maker";
 
     const bringToFrontBtnElement = document.querySelector(
       "#bringToFrontBtn"
@@ -290,7 +334,7 @@ const inpainter = (function () {
      *
      * @example
      * ```typescript
-    import inpainter from "fabric-image-maker";
+    import inpainter from "konva-image-maker";
 
     const bringToBackBtnElement = document.querySelector(
       "#sendToBackBtn"
@@ -315,7 +359,7 @@ const inpainter = (function () {
      *
      * @example
      * ```typescript
-    import inpainter from "fabric-image-maker";
+    import inpainter from "konva-image-maker";
 
     const sendBackwardBtnElement = document.querySelector(
       "#sendBackwardBtn"
@@ -340,7 +384,7 @@ const inpainter = (function () {
      *
      * @example
      * ```typescript
-    import inpainter from "fabric-image-maker";
+    import inpainter from "konva-image-maker";
 
     const canvasBtn2Element = document.querySelector(
       "#canvasBtn2"
@@ -367,6 +411,22 @@ const inpainter = (function () {
     isDrawingModeOn() {
       return drawingModeOn;
     },
+    getRelativePointerPosition(node: Konva.Stage) {
+      // the function will return pointer position relative to the passed node
+      const transform = node.getAbsoluteTransform().copy();
+      // to detect relative position we need to invert transform
+      transform.invert();
+
+      // get pointer (say mouse or touch) position
+      const pos = node.getStage().getPointerPosition();
+
+      // now we find a relative point
+      if (pos !== null) {
+        return transform.point(pos);
+      } else {
+        return null;
+      }
+    },
     /**
      * masking canvas를 생성하는 함수입니다. 'createBaseKonvaStage' 메서드와 마찬가지로 사용하고자 했을 때, 초기에 생성을 해주고 시작해줘야 합니다.
      * 두번 실행할 시에는 기존의 Layer에 덮어씌워 집니다(= 2개 이상 생성이 불가능합니다).
@@ -377,7 +437,7 @@ const inpainter = (function () {
      *
      * @example
      * ```typescript
-    import inpainter from "fabric-image-maker";
+    import inpainter from "konva-image-maker";
 
     inpainter.createDrawingCanvas({ color: "#ffffff", strokeWidth: 60 });
      * ```
@@ -390,19 +450,23 @@ const inpainter = (function () {
       strokeWidth: number;
     }) {
       try {
-        if (lineGroup === null) {
-          lineGroup = new Konva.Group({ name: "lineGroup", draggable: false });
-        }
         if (konvaStage === null) return null;
-        drawingLayer = new Konva.Layer();
-        konvaStage.add(drawingLayer);
+        if (drawingLayer === null) {
+          drawingLayer = new Konva.Layer();
+          konvaStage.add(drawingLayer);
+        }
+
+        if (lineGroup === null && drawingLayer !== null) {
+          lineGroup = new Konva.Group({ name: "lineGroup", draggable: false });
+          drawingLayer.add(lineGroup);
+        }
 
         drawingCanvas.color = color;
         drawingCanvas.strokeWidth = strokeWidth;
-        konvaStage.on("mousedown", function () {
+        konvaStage.on("mousedown", () => {
           if (konvaStage === null || !drawingModeOn) return;
           isPaint = true;
-          const pos = konvaStage.getPointerPosition();
+          const pos = this.getRelativePointerPosition(konvaStage);
 
           lastLine = new Konva.Line({
             stroke: drawingCanvas.color ?? color,
@@ -414,9 +478,8 @@ const inpainter = (function () {
             points: [pos?.x ?? 0, pos?.y ?? 0, pos?.x ?? 0, pos?.y ?? 0],
           });
 
-          if (lineGroup !== null && drawingLayer !== null) {
+          if (lineGroup !== null) {
             lineGroup.add(lastLine);
-            drawingLayer.add(lineGroup);
           }
         });
 
@@ -427,19 +490,20 @@ const inpainter = (function () {
           isPaint = false;
         });
 
-        konvaStage.on("mousemove", function (e) {
+        konvaStage.on("mousemove", (e) => {
           if (!isPaint || lastLine === null || konvaStage === null) {
             return;
           }
 
           e.evt.preventDefault();
+          if (konvaStage !== null) {
+            const pos = this.getRelativePointerPosition(konvaStage);
 
-          const pos = konvaStage.getPointerPosition();
-
-          const newPoints = lastLine
-            .points()
-            .concat([pos?.x ?? 0, pos?.y ?? 0]);
-          lastLine.points(newPoints);
+            const newPoints = lastLine
+              .points()
+              .concat([pos?.x ?? 0, pos?.y ?? 0]);
+            lastLine.points(newPoints);
+          }
         });
 
         return drawingLayer;
@@ -457,7 +521,7 @@ const inpainter = (function () {
      *
      * @example
      * ```typescript
-    import inpainter from "fabric-image-maker";
+    import inpainter from "konva-image-maker";
 
     const maskingBtnElement = document.querySelector(
       "#maskingBtn"
@@ -511,7 +575,7 @@ const inpainter = (function () {
      *
      * @example
      * ```typescript
-    import inpainter from "fabric-image-maker";
+    import inpainter from "konva-image-maker";
 
     const select = document.querySelector("#selection");
 
@@ -562,7 +626,7 @@ const inpainter = (function () {
      *
      * @example
      * ```typescript
-    import inpainter from "fabric-image-maker";
+    import inpainter from "konva-image-maker";
 
     const pixelInput = document.querySelector("#pixelInput") as HTMLInputElement;
     
@@ -594,7 +658,7 @@ const inpainter = (function () {
      *
      * @example
      * ```typescript
-    import inpainter from "fabric-image-maker";
+    import inpainter from "konva-image-maker";
 
     const colorSelect = document.querySelector("#colorSelection");
 
@@ -630,7 +694,7 @@ const inpainter = (function () {
      *
      * @example
      * ```typescript
-    import inpainter from "fabric-image-maker";
+    import inpainter from "konva-image-maker";
 
     const mergeBtnElement = document.querySelector(
       "#mergeBtn"
@@ -655,14 +719,61 @@ const inpainter = (function () {
               const image = selectedImage.children[0] as Konva.Image;
               tr.detach();
 
-              const pngURL = imageLayer.toDataURL();
+              const divElement = document.createElement("div");
+              divElement.style.display = "none";
+              divElement.id = "$#%-image-container-of-inpainter-$#";
+              document.body.appendChild(divElement);
+
+              let newKonvaStage = new Konva.Stage({
+                container: "$#%-image-container-of-inpainter-$#",
+                width: konvaStage.toCanvas().width,
+                height: konvaStage.toCanvas().height,
+              }) as Konva.Stage | null;
+              if (!newKonvaStage) return "";
+
+              newKonvaStage.container().style.backgroundColor = "black";
+              newKonvaStage.container().style.width = `${canvasInfo.width}px`;
+              newKonvaStage.container().style.height = `${canvasInfo.height}px`;
+
+              // 새로 만든 Konva Stage에 마스킹한 부분을 레이어로 쌓고, canvas로 컨버팅해준다.
+
+              newKonvaStage.add(imageLayer.clone());
+              const imageCanvas = newKonvaStage.toCanvas();
+
+              newKonvaStage = null;
+              divElement.remove();
+
+              const pngURL = imageCanvas.toDataURL();
               tr.nodes([image]);
               return pngURL;
             } else {
               return "";
             }
           } else {
-            const pngURL = imageLayer.toDataURL();
+            const divElement = document.createElement("div");
+            divElement.style.display = "none";
+            divElement.id = "$#%-image-container-of-inpainter-$#";
+            document.body.appendChild(divElement);
+
+            let newKonvaStage = new Konva.Stage({
+              container: "$#%-image-container-of-inpainter-$#",
+              width: konvaStage.toCanvas().width,
+              height: konvaStage.toCanvas().height,
+            }) as Konva.Stage | null;
+            if (!newKonvaStage) return "";
+
+            newKonvaStage.container().style.backgroundColor = "black";
+            newKonvaStage.container().style.width = `${canvasInfo.width}px`;
+            newKonvaStage.container().style.height = `${canvasInfo.height}px`;
+
+            // 새로 만든 Konva Stage에 마스킹한 부분을 레이어로 쌓고, canvas로 컨버팅해준다.
+            newKonvaStage.add(imageLayer.clone());
+            const imageCanvas = newKonvaStage.toCanvas();
+
+            newKonvaStage = null;
+            divElement.remove();
+
+            const pngURL = imageCanvas.toDataURL();
             return pngURL;
           }
         } else {
@@ -684,8 +795,8 @@ const inpainter = (function () {
         if (!lineGroup || !newKonvaStage) return "";
 
         newKonvaStage.container().style.backgroundColor = "black";
-        newKonvaStage.container().style.width = `${900}px`;
-        newKonvaStage.container().style.height = `${700}px`;
+        newKonvaStage.container().style.width = `${canvasInfo.width}px`;
+        newKonvaStage.container().style.height = `${canvasInfo.height}px`;
 
         // 새로 만든 Konva Stage에 마스킹한 부분을 레이어로 쌓고, canvas로 컨버팅해준다.
         const layer = new Konva.Layer();
@@ -747,7 +858,7 @@ const inpainter = (function () {
      *
      * @example
      * ```typescript
-    import inpainter from "fabric-image-maker";
+    import inpainter from "konva-image-maker";
 
     const getBlobBtnElement = document.querySelector(
       "#getBlobBtn"
@@ -775,7 +886,7 @@ const inpainter = (function () {
      *
      * @example
      * ```typescript
-    import inpainter from "fabric-image-maker";
+    import inpainter from "konva-image-maker";
 
     const getMaskingBlobBtnElement = document.querySelector(
       "#getMaskingBlobBtn"
@@ -792,6 +903,28 @@ const inpainter = (function () {
       if (dataURI === "") return null;
       const blob = dataURItoBlob(dataURI);
       return blob;
+    },
+    /**
+     * 현재 zoom의 배율을 리턴합니다.
+     *
+     * @alpha
+     * @param 
+     * @returns 정상적으로 리턴되면 배율 데이터가 리턴되고, 실패시엔 null이 리턴됩니다.
+     *
+     * @example
+     * ```typescript
+    import inpainter from "konva-image-maker";
+
+    const spanElement = document.querySelector("#zoom");
+    document.body.addEventListener("wheel", function () {
+      if (spanElement !== null) {
+        spanElement.textContent = String(inpainter.getZoomScale() ?? 0);
+      }
+    });
+     * ```
+     */
+    getZoomScale() {
+      return newZoomScale;
     },
   };
 })();

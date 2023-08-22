@@ -1,6 +1,6 @@
-import inpainter from "konva-image-maker";
+// import inpainter from "konva-image-maker";
 
-// import inpainter from "./main";
+import inpainter from "./main";
 
 const result = inpainter.createBaseKonvaStage({
   id: "app",
@@ -158,3 +158,10 @@ if (colorSelect !== null) {
     inpainter.setStrokeColor(color);
   });
 }
+
+const spanElement = document.querySelector("#zoom");
+document.body.addEventListener("wheel", function () {
+  if (spanElement !== null) {
+    spanElement.textContent = String(inpainter.getZoomScale() ?? 0);
+  }
+});
