@@ -2,16 +2,16 @@
 
 import inpainter from "./main";
 
-const result = inpainter.createBaseKonvaStage({
-  id: "app",
-  width: 900,
-  height: 700,
-  backgroundColor: "skyblue",
-});
+// const result = inpainter.createBaseKonvaStage({
+//   id: "app",
+//   width: 900,
+//   height: 700,
+//   backgroundColor: "skyblue",
+// });
 
-inpainter.createDrawingCanvas({ color: "#ffffff", strokeWidth: 60 });
+// inpainter.createDrawingCanvas({ color: "#ffffff", strokeWidth: 60 });
 
-if (result !== null) {
+if (true) {
   const imageInputElement = document.querySelector(
     "#imageInput"
   ) as HTMLInputElement;
@@ -29,7 +29,11 @@ if (result !== null) {
         reader.readAsDataURL(file);
         reader.onload = (e) => {
           if (img !== null && e?.target !== null) {
-            inpainter.addImageLayer(e.target.result as string);
+            // inpainter.addImageLayer(e.target.result as string);
+            inpainter.createImagePrompt({
+              id: "app",
+              src: e.target.result as string,
+            });
           }
         };
       }
@@ -164,4 +168,11 @@ document.body.addEventListener("wheel", function () {
   if (spanElement !== null) {
     spanElement.textContent = String(inpainter.getZoomScale() ?? 0);
   }
+});
+
+const imageSizeSelect = document.getElementById("image_size_select");
+imageSizeSelect?.addEventListener("change", function (e) {
+  const size = (e.target as HTMLTextAreaElement).value;
+  const [x, y] = size.split("_");
+  inpainter.centerCropDrawingCanvas(parseInt(x), parseInt(y));
 });

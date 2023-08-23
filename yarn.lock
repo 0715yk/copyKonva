@@ -35,10 +35,10 @@
     "@esbuild/win32-ia32" "0.18.19"
     "@esbuild/win32-x64" "0.18.19"
 
-"konva-image-maker@^0.0.12":
-  "integrity" "sha512-DtByCQj/OnTzZ9ZXU/AK1j25ZC4sqT2yDtpiW+a7tbIH8LtDhJfjnEwXo0IqfXIHlhjM45bR2GLIVFgvyau4hg=="
-  "resolved" "https://registry.npmjs.org/konva-image-maker/-/konva-image-maker-0.0.12.tgz"
-  "version" "0.0.12"
+"konva-image-maker@^0.0.13":
+  "integrity" "sha512-pgBaBhdu0vYg6KdFW8XBiqmHB904HEwvdhdILF4cLGx9SwWIfniP/aCxUmcZbUEbuGLFaE4zIDatbhipsgMuJg=="
+  "resolved" "https://registry.npmjs.org/konva-image-maker/-/konva-image-maker-0.0.13.tgz"
+  "version" "0.0.13"
   dependencies:
     "konva" "^9.2.0"
 

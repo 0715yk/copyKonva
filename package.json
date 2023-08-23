@@ -15,6 +15,6 @@
   },
   "dependencies": {
     "konva": "^9.2.0",
-    "konva-image-maker": "^0.0.12"
+    "konva-image-maker": "^0.0.13"
   }
 }
