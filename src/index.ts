@@ -2,14 +2,14 @@
 
 import inpainter from "./main";
 
-// const result = inpainter.createBaseKonvaStage({
-//   id: "app",
-//   width: 900,
-//   height: 700,
-//   backgroundColor: "skyblue",
-// });
+inpainter.createBaseKonvaStage({
+  id: "app",
+  width: 900,
+  height: 700,
+  backgroundColor: "skyblue",
+});
 
-// inpainter.createDrawingCanvas({ color: "#ffffff", strokeWidth: 60 });
+inpainter.createDrawingCanvas({ color: "#ffffff", strokeWidth: 60 });
 
 if (true) {
   const imageInputElement = document.querySelector(
@@ -29,11 +29,12 @@ if (true) {
         reader.readAsDataURL(file);
         reader.onload = (e) => {
           if (img !== null && e?.target !== null) {
-            // inpainter.addImageLayer(e.target.result as string);
-            inpainter.createImagePrompt({
-              id: "app",
-              src: e.target.result as string,
-            });
+            inpainter.addImageLayer(e.target.result as string);
+            //   inpainter.createImagePrompt2({
+            //     id: "app",
+            //     src: e.target.result as string,
+            //   });
+            // }
           }
         };
       }
