@@ -2,14 +2,14 @@
 
 import inpainter from "./main";
 
-inpainter.createBaseKonvaStage({
-  id: "app",
-  width: 900,
-  height: 700,
-  backgroundColor: "skyblue",
-});
+// inpainter.createBaseKonvaStage({
+//   id: "app",
+//   width: 900,
+//   height: 700,
+//   backgroundColor: "skyblue",
+// });
 
-inpainter.createDrawingCanvas({ color: "#ffffff", strokeWidth: 60 });
+// inpainter.createDrawingCanvas({ color: "#ffffff", strokeWidth: 60 });
 
 if (true) {
   const imageInputElement = document.querySelector(
@@ -29,12 +29,11 @@ if (true) {
         reader.readAsDataURL(file);
         reader.onload = (e) => {
           if (img !== null && e?.target !== null) {
-            inpainter.addImageLayer(e.target.result as string);
-            //   inpainter.createImagePrompt2({
-            //     id: "app",
-            //     src: e.target.result as string,
-            //   });
-            // }
+            // inpainter.addImageLayer(e.target.result as string);
+            inpainter.createImagePrompt2({
+              id: "app",
+              src: e.target.result as string,
+            });
           }
         };
       }
@@ -49,7 +48,8 @@ if (true) {
     const mergedImageElement = document.querySelector(
       "#merged_image"
     ) as HTMLImageElement;
-    const url = inpainter.canvasToDataUrl("image");
+    // const url = inpainter.canvasToDataUrl("image");
+    const url = inpainter.getUrl();
     mergedImageElement.src = url;
     mergedImageElement.style.border = "1px solid black";
   });
@@ -131,7 +131,8 @@ if (true) {
     const mergedImageElement = document.querySelector(
       "#merged_masked_image"
     ) as HTMLImageElement;
-    const url = inpainter.canvasToDataUrl("mask");
+    // const url = inpainter.canvasToDataUrl("mask");
+    const url = inpainter.getUrl2();
     mergedImageElement.src = url;
     mergedImageElement.style.border = "1px solid black";
   });
@@ -177,3 +178,48 @@ imageSizeSelect?.addEventListener("change", function (e) {
   const [x, y] = size.split("_");
   inpainter.centerCropDrawingCanvas(parseInt(x), parseInt(y));
 });
+
+// Konva.Image.fromURL(
+//   'https://konvajs.org/assets/darth-vader.jpg',
+//   (img) => {
+//     img.setAttrs({
+//       width: 300,
+//       height: 100,
+//       x: 80,
+//       y: 100,
+//       name: 'image',
+//       draggable: true,
+//     });
+//     layer.add(img);
+//     // apply default left-top crop
+//     applyCrop('center-middle');
+
+//     const tr = new Konva.Transformer({
+//       nodes: [img],
+//       keepRatio: false,
+//       boundBoxFunc: (oldBox, newBox) => {
+//         if (newBox.width < 10 || newBox.height < 10) {
+//           return oldBox;
+//         }
+//         return newBox;
+//       },
+//     });
+
+//     layer.add(tr);
+
+//     img.on('transform', () => {
+//       // reset scale on transform
+//       img.setAttrs({
+//         scaleX: 1,
+//         scaleY: 1,
+//         width: img.width() * img.scaleX(),
+//         height: img.height() * img.scaleY(),
+//       });
+//       applyCrop(img.getAttr('lastCropUsed'));
+//     });
+//   }
+// );
+
+// document.querySelector('#clip').onchange = (e) => {
+//   applyCrop(e.target.value);
+// };

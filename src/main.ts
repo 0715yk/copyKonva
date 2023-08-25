@@ -35,6 +35,7 @@ const inpainter = (function () {
   let imagePromptStage = null as null | Konva.Stage;
   let imagePromptLayer = null as null | Konva.Layer;
   let imagePromptImage = null as null | Konva.Image;
+  let maskUrl = "";
   let imgUrl = "";
   return {
     addItem(id: string, imgUrl: string) {
@@ -149,293 +150,285 @@ const inpainter = (function () {
     //   var y = canvas.height / 2 - (img.height / 2) * scale;
     //   context?.drawImage(img, x, y, img.width * scale, img.height * scale);
     // },
+    getCrop(image, size, clipPosition = "center-middle") {
+      const width = size.width;
+      const height = size.height;
+      const aspectRatio = width / height;
 
+      let newWidth;
+      let newHeight;
+
+      const imageRatio = image.width / image.height;
+
+      if (aspectRatio >= imageRatio) {
+        newWidth = image.width;
+        newHeight = image.width / aspectRatio;
+      } else {
+        newWidth = image.height * aspectRatio;
+        newHeight = image.height;
+      }
+
+      let x = 0;
+      let y = 0;
+      if (clipPosition === "left-top") {
+        x = 0;
+        y = 0;
+      } else if (clipPosition === "left-middle") {
+        x = 0;
+        y = (image.height - newHeight) / 2;
+      } else if (clipPosition === "left-bottom") {
+        x = 0;
+        y = image.height - newHeight;
+      } else if (clipPosition === "center-top") {
+        x = (image.width - newWidth) / 2;
+        y = 0;
+      } else if (clipPosition === "center-middle") {
+        x = (image.width - newWidth) / 2;
+        y = (image.height - newHeight) / 2;
+      } else if (clipPosition === "center-bottom") {
+        x = (image.width - newWidth) / 2;
+        y = image.height - newHeight;
+      } else if (clipPosition === "right-top") {
+        x = image.width - newWidth;
+        y = 0;
+      } else if (clipPosition === "right-middle") {
+        x = image.width - newWidth;
+        y = (image.height - newHeight) / 2;
+      } else if (clipPosition === "right-bottom") {
+        x = image.width - newWidth;
+        y = image.height - newHeight;
+      } else if (clipPosition === "scale") {
+        x = 0;
+        y = 0;
+        newWidth = width;
+        newHeight = height;
+      } else {
+        console.error(
+          new Error("Unknown clip position property - " + clipPosition)
+        );
+      }
+
+      return {
+        cropX: x,
+        cropY: y,
+        cropWidth: newWidth,
+        cropHeight: newHeight,
+      };
+    },
     createImagePrompt2({ id, src }: { id: string; src: string }) {
       try {
         const imageObj = new Image();
 
         let image = null as null | Konva.Image;
+        if (imagePromptStage === null) {
+          imagePromptStage = new Konva.Stage({
+            container: id,
+          });
 
-        imageObj.onload = () => {
-          const { width: imageWidth, height: imageHeight } = imageObj;
-          const { desiredWidth, desiredHeight } = desiredSize;
-          const scale = Math.min(
-            desiredWidth / imageWidth,
-            desiredHeight / imageHeight
-          );
-
-          const x = desiredWidth / 2 - (imageWidth / 2) * scale;
-          const y = desiredHeight / 2 - (imageHeight / 2) * scale;
-          const w = imageWidth * scale;
-          const h = imageHeight * scale;
-          // let w: number,
-          //   h: number,
-          //   x = 0,
-          //   y = 0;
-          // if (desiredWidth === null || desiredHeight === null) return;
-
-          // const inputRatio = desiredWidth / desiredHeight;
-          // const imageRatio = imageWidth / imageHeight;
-          // if (imageRatio > inputRatio) {
-          //   w = (desiredHeight * imageWidth) / imageHeight;
-          //   h = desiredHeight;
-          //   x = (desiredWidth - w) / 2;
-          // } else if (imageRatio < inputRatio) {
-          //   w = desiredWidth;
-          //   h = (desiredWidth * imageHeight) / imageWidth;
-          //   y = (desiredHeight - h) / 2;
-          // } else {
-          //   w = desiredWidth;
-          //   h = desiredHeight;
-          // }
-          // console.log(
-          //   imageWidth,
-          //   imageHeight,
-          //   desiredWidth,
-          //   desiredHeight,
-          //   w,
-          //   h,
-          //   x,
-          //   y
-          // );
-
-          if (
-            imagePromptStage === null ||
-            imagePromptLayer === null ||
-            imagePromptImage == null ||
-            lineGroup === null
-          ) {
-            imagePromptStage = new Konva.Stage({
-              container: id,
-              x,
-              y,
-              width: desiredWidth,
-              height: desiredHeight,
-            });
-
-            imagePromptLayer = new Konva.Layer();
-            imagePromptStage.add(imagePromptLayer);
-            imagePromptImage = new Konva.Image({
-              image: imageObj,
-              x,
-              y,
-              width: w,
-              height: h,
-              draggable: false,
-            });
-
-            imagePromptLayer.add(imagePromptImage);
-            image = imagePromptImage;
-            lineGroup = new Konva.Group({
-              name: "lineGroup",
-              draggable: false,
-              width: imageWidth,
-              height: imageHeight,
-              x: 0,
-              y: 0,
-            });
-            imagePromptLayer.add(lineGroup);
-            imagePromptStage.on("mousedown", () => {
-              if (imagePromptStage === null) return;
-              isPaint = true;
-              const pos = this.getRelativePointerPosition(imagePromptStage);
-
-              lastLine = new Konva.Line({
-                stroke: drawingCanvas.color ?? "#FFFFFF",
-                strokeWidth: drawingCanvas.strokeWidth ?? 15,
-                globalCompositeOperation:
-                  drawingMode === "brush" ? "source-over" : "destination-out",
-                lineCap: "round",
-                lineJoin: "round",
-                points: [pos?.x ?? 0, pos?.y ?? 0, pos?.x ?? 0, pos?.y ?? 0],
-              });
-
-              if (lineGroup !== null) {
-                lineGroup.add(lastLine);
-              }
-            });
-            imagePromptStage.on("mousemove", (e) => {
-              if (!isPaint || lastLine === null || imagePromptStage === null) {
-                return;
-              }
-
-              e.evt.preventDefault();
-              if (imagePromptStage !== null) {
-                const pos = this.getRelativePointerPosition(imagePromptStage);
-
-                const newPoints = lastLine
-                  .points()
-                  .concat([pos?.x ?? 0, pos?.y ?? 0]);
-                lastLine.points(newPoints);
-              }
-            });
-            imagePromptStage.on("mouseup", function () {
-              isPaint = false;
-            });
-            imagePromptStage.on("mouseleave", () => {
-              isPaint = false;
-            });
-          } else {
-            imagePromptImage.image(imageObj);
-            imagePromptImage.width(w);
-            imagePromptImage.height(h);
-            imagePromptImage.width(desiredWidth);
-            imagePromptStage.height(desiredHeight);
-
-            // lineGroup.width(w);
-            // lineGroup.height(h);
-
-            // const imgSrc = this.toUrl(imageWidth, imageHeight);
-
-            // imgUrl = imgSrc;
-            // this.canvasToDataUrl("mask");
-            // const canvas = document.createElement("canvas");
-            // canvas.width = desiredWidth;
-            // canvas.height = desiredHeight;
-            // const context = canvas.getContext("2d");
-
-            // img.onload = () => {
-            //   const { width: imageWidth, height: imageHeight } = img;
-            //   const inputRatio = desiredWidth / desiredHeight;
-            //   const imageRatio = imageWidth / imageHeight;
-
-            //   let w,
-            //     h,
-            //     x = 0,
-            //     y = 0;
-
-            //   if (imageRatio > inputRatio) {
-            //     w = (desiredHeight * imageWidth) / imageHeight;
-            //     h = desiredHeight;
-            //     x = (desiredWidth - w) / 2;
-            //   } else if (imageRatio < inputRatio) {
-            //     w = desiredWidth;
-            //     h = (desiredWidth * imageHeight) / imageWidth;
-            //     y = (desiredHeight - h) / 2;
-            //   } else {
-            //     w = desiredWidth;
-            //     h = desiredHeight;
-            //   }
-
-            //   context?.drawImage(img, x, y, w, h);
-
-            //   const resultImageUrl = canvas.toDataURL();
-
-            //   const resultImg = new Image();
-            //   resultImg.onload = () => {
-            //     const newImage = new Konva.Image({
-            //       image: resultImg,
-
-            //       draggable: false,
-            //     });
-            //     imagePromptLayer?.add(newImage);
-            //   };
-            //   resultImg.src = resultImageUrl;
-            // };
-            // img.src = imgSrc;
+          if (drawingLayer === null) {
+            drawingLayer = new Konva.Layer();
+            imagePromptStage.add(drawingLayer);
           }
 
-          // --------------------
+          drawingCanvas.color = "green";
+          drawingCanvas.strokeWidth = 35;
+          imagePromptStage.on("mousedown", () => {
+            if (imagePromptStage === null) return;
+            isPaint = true;
+            const pos = this.getRelativePointerPosition(imagePromptStage);
 
-          // if (lineGroup === null) {
-          //   lineGroup = new Konva.Group({
-          //     name: "lineGroup",
-          //     draggable: false,
-          //     width: w,
-          //     height: h,
-          //     x: 0,
-          //     y: 0,
-          //   });
-          // } else {
-          //   const imageLineGroupObj = lineGroup.toImage({
-          //     callback(img) {
-          //       const { width: imageWidth, height: imageHeight } = img;
-          //       const { desiredWidth, desiredHeight } = desiredSize;
-          //       let w,
-          //         h,
-          //         x = 0,
-          //         y = 0;
-          //       if (desiredWidth === null || desiredHeight === null) return;
-          //       const inputRatio = desiredWidth / desiredHeight;
-          //       const imageRatio = imageWidth / imageHeight;
-          //       if (imageRatio > inputRatio) {
-          //         w = (desiredHeight * imageWidth) / imageHeight;
-          //         h = desiredHeight;
-          //         x = (desiredWidth - w) / 2;
-          //       } else if (imageRatio < inputRatio) {
-          //         w = desiredWidth;
-          //         h = (desiredWidth * imageHeight) / imageWidth;
-          //         y = (desiredHeight - h) / 2;
-          //       } else {
-          //         w = desiredWidth;
-          //         h = desiredHeight;
-          //       }
+            lastLine = new Konva.Line({
+              stroke: drawingCanvas.color,
+              strokeWidth: drawingCanvas.strokeWidth,
+              globalCompositeOperation:
+                drawingMode === "brush" ? "source-over" : "destination-out",
+              lineCap: "round",
+              lineJoin: "round",
+              points: [pos?.x ?? 0, pos?.y ?? 0, pos?.x ?? 0, pos?.y ?? 0],
+            });
 
-          //       const lineGroupImage = new Konva.Image({
-          //         image: img,
-          //         width: w,
-          //         height: h,
-          //         x: 0,
-          //         y: 0,
-          //         draggable: false,
-          //       });
-          //       imagePromptLayer?.add(lineGroupImage);
-          //     },
-          //   });
-          // }
-          // lineGroup.width(w);
-          // lineGroup.height(h);
-          // lineGroup.x(x);
-          // lineGroup.y(y);
-          // imagePromptLayer.add(lineGroup);
-          // imagePromptStage.draw();
-          // drawingCanvas.color = "#FFFFFF";
-          // drawingCanvas.strokeWidth = 15;
+            if (lineGroup !== null) {
+              lineGroup.add(lastLine);
+            }
+          });
 
-          // imagePromptStage.on("mousedown", () => {
-          //   if (imagePromptStage === null) return;
-          //   isPaint = true;
-          //   const pos = this.getRelativePointerPosition(imagePromptStage);
+          imagePromptStage.on("mouseup", function () {
+            isPaint = false;
+          });
+          imagePromptStage.on("mouseleave", () => {
+            isPaint = false;
+          });
 
-          //   lastLine = new Konva.Line({
-          //     stroke: drawingCanvas.color ?? "#FFFFFF",
-          //     strokeWidth: drawingCanvas.strokeWidth ?? 15,
-          //     globalCompositeOperation:
-          //       drawingMode === "brush" ? "source-over" : "destination-out",
-          //     lineCap: "round",
-          //     lineJoin: "round",
-          //     points: [pos?.x ?? 0, pos?.y ?? 0, pos?.x ?? 0, pos?.y ?? 0],
-          //   });
+          imagePromptStage.on("mousemove", (e) => {
+            if (!isPaint || lastLine === null || imagePromptStage === null) {
+              return;
+            }
 
-          //   if (lineGroup !== null) {
-          //     lineGroup.add(lastLine);
-          //   }
-          // });
-          // imagePromptStage.on("mousemove", (e) => {
-          //   if (!isPaint || lastLine === null || imagePromptStage === null) {
-          //     return;
-          //   }
+            e.evt.preventDefault();
+            if (imagePromptStage !== null) {
+              const pos = this.getRelativePointerPosition(imagePromptStage);
 
-          //   e.evt.preventDefault();
-          //   if (imagePromptStage !== null) {
-          //     const pos = this.getRelativePointerPosition(imagePromptStage);
+              const newPoints = lastLine
+                .points()
+                .concat([pos?.x ?? 0, pos?.y ?? 0]);
+              lastLine.points(newPoints);
+            }
+          });
+        }
+        imageObj.onload = async () => {
+          const { width: imageWidth, height: imageHeight } = imageObj;
+          const { desiredWidth, desiredHeight } = desiredSize;
+          imagePromptStage.width(imageWidth);
+          imagePromptStage.height(imageHeight);
+          let w: number,
+            h: number,
+            x = 0,
+            y = 0;
+          if (desiredWidth === null || desiredHeight === null) return;
 
-          //     const newPoints = lastLine
-          //       .points()
-          //       .concat([pos?.x ?? 0, pos?.y ?? 0]);
-          //     lastLine.points(newPoints);
-          //   }
-          // });
-          // imagePromptStage.on("mouseup", function () {
-          //   isPaint = false;
-          // });
-          // imagePromptStage.on("mouseleave", () => {
-          //   isPaint = false;
-          // });
+          const inputRatio = desiredWidth / desiredHeight;
+          const imageRatio = imageWidth / imageHeight;
+          if (imageRatio > inputRatio) {
+            w = (desiredHeight * imageWidth) / imageHeight;
+            h = desiredHeight;
+            x = (desiredWidth - w) / 2;
+          } else if (imageRatio < inputRatio) {
+            w = desiredWidth;
+            h = (desiredWidth * imageHeight) / imageWidth;
+            y = (desiredHeight - h) / 2;
+          } else {
+            w = desiredWidth;
+            h = desiredHeight;
+          }
 
-          // -----------------
+          const divElement = document.createElement("div");
+          divElement.style.display = "none";
+          divElement.id = "$#%-image-container-of-inpainter-$#";
+          document.body.appendChild(divElement);
+          let dummyStage = new Konva.Stage({
+            container: divElement.id,
+            x,
+            y,
+            width: desiredWidth,
+            height: desiredHeight,
+          });
+          const dummyLayer = new Konva.Layer();
+          dummyStage.add(dummyLayer);
+          const dummyImage = new Konva.Image({
+            image: imageObj,
+            width: w,
+            height: h,
+            x: 0,
+            y: 0,
+            draggable: false,
+          });
+
+          dummyLayer.add(dummyImage);
+
+          const newImage = (await dummyStage.toImage()) as HTMLImageElement;
+          dummyStage = null;
+          divElement.remove();
+          const newKonvaImage = new Konva.Image({
+            image: imageObj,
+            draggable: false,
+          });
+          if (imagePromptLayer === null) {
+            imagePromptLayer = new Konva.Layer();
+            imagePromptStage.add(imagePromptLayer);
+          }
+          imagePromptLayer.destroyChildren();
+          imagePromptLayer.add(newKonvaImage);
+
+          //-------------------------------------
+
+          const divElement2 = document.createElement("div");
+          divElement2.style.display = "none";
+          divElement2.id = "$#%-image-container-of-inpainter-$#";
+          document.body.appendChild(divElement2);
+          let dummyStage2 = new Konva.Stage({
+            container: divElement2.id,
+            width: imageWidth,
+            height: imageHeight,
+          });
+          const dummyLayer2 = drawingLayer.clone();
+          dummyStage2.add(dummyLayer2);
+          imgUrl = dummyStage2.toCanvas().toDataURL();
+          const imageObj2 = (await dummyStage2.toImage()) as HTMLImageElement;
+
+          const { width: imageW, height: imageH } = imageObj2;
+          const { desiredWidth: desiredW, desiredHeight: desiredH } =
+            desiredSize;
+          let newW,
+            newH,
+            newX = 0,
+            newY = 0;
+          if (desiredW === null || desiredH === null) return;
+          const inputRatio2 = desiredW / desiredH;
+          const imageRatio2 = imageW / imageH;
+          if (imageRatio2 > inputRatio2) {
+            newW = (desiredH * imageW) / imageH;
+            newH = desiredH;
+            newX = (desiredW - newW) / 2;
+          } else if (imageRatio2 < inputRatio2) {
+            newW = desiredW;
+            newH = (desiredW * imageH) / imageW;
+            newY = (desiredH - newH) / 2;
+          } else {
+            newW = desiredW;
+            newH = desiredH;
+          }
+
+          const div = document.createElement("div");
+          div.style.display = "none";
+          div.id = "$#%-image-container-of-inpainter-$#";
+          document.body.appendChild(div);
+          let dummyS = new Konva.Stage({
+            container: div.id,
+            x: newX,
+            y: newY,
+            width: desiredW,
+            height: desiredH,
+          });
+          const dummyL = new Konva.Layer();
+          dummyS.add(dummyL);
+          const dummyI = new Konva.Image({
+            image: imageObj2,
+            width: newW,
+            height: newH,
+            x: 0,
+            y: 0,
+            draggable: false,
+          });
+
+          dummyL.add(dummyI);
+
+          const newI = (await dummyS.toImage()) as HTMLImageElement;
+
+          dummyL.add(dummyI);
+          maskUrl = await dummyS.toCanvas().toDataURL();
+          dummyS = null;
+          div.remove();
+
+          const dummyImage3 = new Konva.Image({
+            image: newI,
+            x: 0,
+            y: 0,
+            draggable: false,
+          });
+
+          drawingLayer.destroyChildren();
+          drawingLayer.add(dummyImage3);
+
+          lineGroup = new Konva.Group({
+            name: "lineGroup",
+            draggable: false,
+          });
+
+          drawingLayer.add(lineGroup);
+          drawingLayer.moveToTop();
+
+          // image = imagePromptImage;
         };
-
         imageObj.src = src;
         return image;
       } catch (e) {
@@ -445,6 +438,9 @@ const inpainter = (function () {
     },
     getUrl() {
       return imgUrl;
+    },
+    getUrl2() {
+      return maskUrl;
     },
     createImagePrompt({ id, src }: { id: string; src: string }) {
       try {
@@ -694,42 +690,42 @@ const inpainter = (function () {
 
         const scaleBy = 1.2;
 
-        konvaStage.on("wheel", (e) => {
-          if (konvaStage !== null) {
-            e.evt.preventDefault();
-            const oldScale = konvaStage.scaleX();
+        // konvaStage.on("wheel", (e) => {
+        //   if (konvaStage !== null) {
+        //     e.evt.preventDefault();
+        //     const oldScale = konvaStage.scaleX();
 
-            const center = {
-              x: konvaStage.width() / 2,
-              y: konvaStage.height() / 2,
-            };
+        //     const center = {
+        //       x: konvaStage.width() / 2,
+        //       y: konvaStage.height() / 2,
+        //     };
 
-            const relatedTo = {
-              x: (center.x - konvaStage.x()) / oldScale,
-              y: (center.y - konvaStage.y()) / oldScale,
-            };
+        //     const relatedTo = {
+        //       x: (center.x - konvaStage.x()) / oldScale,
+        //       y: (center.y - konvaStage.y()) / oldScale,
+        //     };
 
-            const newScale =
-              e.evt.deltaY > 0 ? oldScale * scaleBy : oldScale / scaleBy;
+        //     const newScale =
+        //       e.evt.deltaY > 0 ? oldScale * scaleBy : oldScale / scaleBy;
 
-            if (newScale > zoomMaxRatio || newScale < zoomMinRatio) {
-              return;
-            }
-            konvaStage.scale({
-              x: newScale,
-              y: newScale,
-            });
+        //     if (newScale > zoomMaxRatio || newScale < zoomMinRatio) {
+        //       return;
+        //     }
+        //     konvaStage.scale({
+        //       x: newScale,
+        //       y: newScale,
+        //     });
 
-            const newPos = {
-              x: center.x - relatedTo.x * newScale,
-              y: center.y - relatedTo.y * newScale,
-            };
+        //     const newPos = {
+        //       x: center.x - relatedTo.x * newScale,
+        //       y: center.y - relatedTo.y * newScale,
+        //     };
 
-            konvaStage.position(newPos);
-            konvaStage.batchDraw();
-            newZoomScale = newScale;
-          }
-        });
+        //     konvaStage.position(newPos);
+        //     konvaStage.batchDraw();
+        //     newZoomScale = newScale;
+        //   }
+        // });
 
         return konvaStage;
       } catch (e) {
@@ -1558,9 +1554,17 @@ const inpainter = (function () {
       desiredSize.desiredWidth = width;
       desiredSize.desiredHeight = height;
     },
-    // resetZoomScale() {
-    //   newZoomScale = new
-    // },
+
+    applyCrop(pos) {
+      const img = imagePromptLayer.findOne(".image") as Konva.Image;
+      img.setAttr("lastCropUsed", pos);
+      const crop = this.getCrop(
+        img.image(),
+        { width: img.width(), height: img.height() },
+        pos
+      );
+      img.setAttrs(crop);
+    },
   };
 })();
 
